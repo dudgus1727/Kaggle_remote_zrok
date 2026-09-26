@@ -1,12 +1,16 @@
 import urllib.request
 import os
 import sys
-import tarfile
 import json
 import subprocess
 import platform
+import shutil
 
 class Zrok:
+    # zrok v2 installs its binary as `zrok2` (Homebrew still names it `zrok`)
+    BINARY_CANDIDATES = ("zrok2", "zrok")
+    INSTALL_SCRIPT_URL = "https://get.openziti.io/install.bash"
+
     def __init__(self, token: str, name: str = None):
         """Initialize Zrok instance with API token and optional environment name.
         
@@ -19,7 +23,7 @@ class Zrok:
         
         self.token = token
         self.name = name
-        self.base_url = "https://api-v1.zrok.io/api/v1"
+        self.base_url = "https://api-v2.zrok.io/api/v2"
 
     def get_env(self):
         """Get overview of all zrok environments using HTTP API.
@@ -113,12 +117,12 @@ class Zrok:
         if env_name is None:
             raise ValueError("Environment name must be provided either during initialization or when calling enable()")
         
-        subprocess.run(["zrok", "enable", self.token, "-d", env_name], check=True)
+        subprocess.run([Zrok.binary(), "enable", self.token, "-d", env_name, "--headless"], check=True)
 
     def disable(self, name: str = None):
         """Disable zrok.
         
-        This function executes the zrok disable command to delete the environment stored in the local file ~/.zrok/environment.json,
+        This function executes the zrok disable command to delete the environment stored in the local file ~/.zrok2/environment.json,
         and additionally removes any environments that could not be deleted through HTTP communication.
         
         Args:
@@ -127,9 +131,9 @@ class Zrok:
         """
         env_name = name if name is not None else self.name
 
-        # Delete the ~/.zrok/environment.json file
+        # Delete the ~/.zrok2/environment.json file
         try:
-            subprocess.run(["zrok", "disable"], check=True)
+            subprocess.run([Zrok.binary(), "disable"], check=True)
         except Exception as e:
             print(e)
             print("zrok already disable")
@@ -140,59 +144,56 @@ class Zrok:
             self.delete_environment(env['environment']['zId'])
 
     @staticmethod
-    def install():
-        """Install the latest version of zrok.
-        
-        This method:
-        1. Downloads the latest zrok release from GitHub
-        2. Extracts the binary to /usr/local/bin/
-        3. Verifies the installation
+    def binary():
+        """Return the name of the installed zrok v2 executable.
+
+        Returns:
+            str: `zrok2` or `zrok` (whichever is a v2 build)
+
+        Raises:
+            FileNotFoundError: If no zrok v2 executable is found
         """
-        # Check if running on Windows
+        for name in Zrok.BINARY_CANDIDATES:
+            if shutil.which(name) is None:
+                continue
+            try:
+                result = subprocess.run([name, "version"], capture_output=True, text=True)
+            except OSError:
+                continue
+            if "v2." in result.stdout + result.stderr:
+                return name
+        raise FileNotFoundError("zrok v2 is not installed")
+
+    @staticmethod
+    def install():
+        """Install zrok v2 using the official OpenZiti install script.
+
+        Runs: curl -sSf https://get.openziti.io/install.bash | sudo bash -s zrok2
+        """
         if platform.system() != 'Linux':
             raise Exception("This script only works on Linux. For other operating systems, \
-                            please install zrok manually following the instructions at https://docs.zrok.io/docs/guides/install/")
+                            please install zrok2 manually following the instructions at https://docs.zrok.io/docs/guides/install/")
 
-        print("Downloading latest zrok release")
-        # Get latest release info
-        response = urllib.request.urlopen("https://api.github.com/repos/openziti/zrok/releases/latest")
-        data = json.loads(response.read())
-        
-        # Find linux_amd64 tar.gz download URL
-        download_url = None
-        for asset in data["assets"]:
-            if "linux_amd64.tar.gz" in asset["browser_download_url"]:
-                download_url = asset["browser_download_url"]
-                break
-        
-        if not download_url:
-            raise FileNotFoundError("Could not find zrok download URL for linux_amd64")
-        
-        # Download zrok
-        urllib.request.urlretrieve(download_url, "zrok.tar.gz")
-        
-        print("Extracting Zrok")
-        with tarfile.open("zrok.tar.gz", "r:gz") as tar:
-            tar.extractall("/usr/local/bin/")
-        os.remove("zrok.tar.gz")
+        print("Installing zrok2")
+        sudo = "" if os.geteuid() == 0 else "sudo "
+        subprocess.run(f"curl -sSf {Zrok.INSTALL_SCRIPT_URL} | {sudo}bash -s zrok2", shell=True, check=True)
 
-        # Check if zrok is installed correctly
         if not Zrok.is_installed():
-            raise RuntimeError("Failed to verify zrok installation")
-        
-        print("Successfully installed zrok")
+            raise RuntimeError("Failed to verify zrok2 installation")
+
+        print("Successfully installed zrok2")
 
     @staticmethod
     def is_installed():
-        """Check if zrok is installed and accessible.
-        
+        """Check if zrok v2 is installed and accessible.
+
         Returns:
-            bool: True if zrok is installed and can be executed, False otherwise
+            bool: True if a zrok v2 executable is found, False otherwise
         """
         try:
-            subprocess.run(["zrok", "version"], check=True)
+            Zrok.binary()
             return True
-        except (subprocess.CalledProcessError, FileNotFoundError):
+        except FileNotFoundError:
             return False
 
     @staticmethod
@@ -204,7 +205,7 @@ class Zrok:
         """
         try:
             result = subprocess.run(
-                ["zrok", "status"],
+                [Zrok.binary(), "status"],
                 capture_output=True,
                 text=True,
                 check=True

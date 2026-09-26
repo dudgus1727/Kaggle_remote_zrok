@@ -31,7 +31,7 @@ This repository offers powerful features:
 ## Setup
 
 ### Step 1 : Zrok 
-Create an account at [zrok](https://zrok.io) and copy your auth token. Please checkout [api-v1.zrok.io](https://api-v1.zrok.io/) or [docs](https://docs.zrok.io/docs/getting-started/#enabling-your-zrok-environment)
+Create an account at [zrok](https://zrok.io) and copy your auth token. Please checkout [api-v2.zrok.io](https://api-v2.zrok.io/) or [docs](https://docs.zrok.io/docs/getting-started/#enabling-your-zrok-environment)
 
 > [!NOTE]
 >
@@ -43,12 +43,25 @@ Open the [link](https://www.kaggle.com/code/kayak0/kaggle-zrok), copy the notebo
 
 In Session options, change internet to on and start the session to run the example notebook cells.
 
+```python
+!printenv > /kaggle/working/kaggle_env_vars.txt
+!git clone https://github.com/dudgus1727/Kaggle_remote_zrok.git
+%cd /kaggle/working/Kaggle_remote_zrok
+!chmod +x setup_ssh.sh zrok_server.py
+
+# installs zrok2 (curl -sSf https://get.openziti.io/install.bash | sudo bash -s zrok2) if missing
+!python3 zrok_server.py --token "<zrok token>" --password "0"
+# --authorized_keys_url "<public key url>"
+
+!zrok2 share private --headless --backend-mode tcpTunnel localhost:22
+```
+
 - Default password is set to **0**
 - No need to set up SSH keys (if you want, see the notice)
 
 ### Step 3 : Setup local machine
 
-Install [**zrok**](https://docs.zrok.io/docs/guides/install/) and [**vscode**](https://code.visualstudio.com/download) on your local machine. Also, make sure to install the [**Remote-SSH**](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-ssh) extension for VS Code.
+Install [**zrok2**](https://docs.zrok.io/docs/guides/install/) (zrok v2) and [**vscode**](https://code.visualstudio.com/download) on your local machine. Also, make sure to install the [**Remote-SSH**](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-ssh) extension for VS Code.
 
 Finally, run the `zrok_client.py` file in your local machine.
 
@@ -135,11 +148,11 @@ You can provide this URL as the authorized_keys_url argument when running zrok_s
 ### 3. Exceptions
 the environment is disabled and re-enabled each time the code runs. This approach helps maintain stability. The code can be modified to run faster, but doing so may lead to numerous errors. 
 
-Also, there may be exceptional situations in these operations. In such cases, you should access https://api-v1.zrok.io/ and manually delete the conflicting environments.
+Also, there may be exceptional situations in these operations. In such cases, you should access https://api-v2.zrok.io/ and manually delete the conflicting environments.
 
 ### 4. Technically
 
-The solution directly interacts with the Zrok official web console (API V1) over HTTP and fully exploits OpenZiti’s dual-plane architecture for secure, high-performance connectivity:
+The solution directly interacts with the Zrok official web console (API v2) over HTTP and fully exploits OpenZiti’s dual-plane architecture for secure, high-performance connectivity:
 
 - Control Plane: A centralized authentication and management service that automatically retrieves and synchronizes user environment data in real time, eliminating repetitive setup tasks.
 

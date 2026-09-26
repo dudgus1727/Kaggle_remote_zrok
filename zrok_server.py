@@ -33,6 +33,8 @@ def main(args):
         print(f"Setting password for root user: {password}")
         subprocess.run(f"echo 'root:{password}' | sudo chpasswd", shell=True, check=True)
 
+    print(f"Setup done. Start the SSH tunnel with: {Zrok.binary()} share private --headless --backend-mode tcpTunnel localhost:22")
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Kaggle SSH connection setup')
     parser.add_argument('--token', type=str, help='zrok API token')

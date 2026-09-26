@@ -22,7 +22,7 @@ def main(args):
     share_token = None
     for share in env.get("shares", []):
         if (share.get("backendMode") == "tcpTunnel" and
-            share.get("backendProxyEndpoint") == f"localhost:{args.port}"):
+            share.get("target") == f"localhost:{args.port}"):
             share_token = share.get("shareToken")
             break
 
@@ -30,9 +30,10 @@ def main(args):
         raise Exception(f"SSH tunnel not found in {args.server_name} environment. Are you running the notebook?")
 
     # 2. Start zrok process
-    print(f"zrok access private {share_token}")
+    access_cmd = f"{Zrok.binary()} access private {share_token}"
+    print(access_cmd)
     subprocess.Popen(
-        ["cmd", "/k", f"zrok access private {share_token}"],
+        ["cmd", "/k", access_cmd],
         creationflags=subprocess.CREATE_NEW_CONSOLE
     )
 
